@@ -18,7 +18,7 @@ local function apply_config(self, delete_fn)
 
    self.autocmd_id = vim.api.nvim_create_autocmd("FileType", {
       pattern = "qf",
-      desc = "Delete quickfix entry",
+      desc = "Set up quickfixdel keymap",
       callback = function(event)
          if self.mapped_key ~= nil then
             -- clear existing mapping
