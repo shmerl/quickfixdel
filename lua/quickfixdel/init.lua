@@ -3,40 +3,65 @@ local QuickfixDel = {
       key = "dd", -- defaults to deleting with dd
    },
    autocmd_id = nil,
-   setup_calls = 0,
-   load_calls = 0
+   mapped_key = nil,
+   setup_calls = 0
 }
 
-function QuickfixDel:new()
-   -- polyfill table.unpack for older Lua
-   table.unpack = table.unpack or unpack
-   self:load()
-   return self
+-- should not be called more than twice
+-- gets delete_fn to be able to call private delete_quickfix_entry from the autocmd event callback,
+-- which doesn't have access to module scope
+local function apply_config(self, delete_fn)
+   if self.autocmd_id ~= nil then
+      -- subsequent call from setup(), delete existing autocmd first to recreate it below
+      vim.api.nvim_del_autocmd(self.autocmd_id)
+   end
+
+   self.autocmd_id = vim.api.nvim_create_autocmd("FileType", {
+      pattern = "qf",
+      desc = "Delete quickfix entry",
+      callback = function(event)
+         if self.mapped_key ~= nil then
+            -- clear existing mapping
+            vim.keymap.del("n", self.mapped_key, { buffer = event.buf })
+         end
+
+         vim.keymap.set("n", self.config.key, delete_fn, { buffer = event.buf, desc = "Delete quickfix entry" })
+         self.mapped_key = self.config.key
+      end
+   })
 end
 
 -- intended to be called for the window that shows quickfix list
-local function delete_current_quickfix_entry()
-   local qf_list = vim.fn.getqflist()
-   local qf_index = 0
+-- deletes entry in the line under the cursor
+local function delete_quickfix_entry()
+   local quickfix_list = vim.fn.getqflist()
+   local quickfix_index = 0
 
-   if #qf_list > 0 then
-      -- get current cursor line position as qf_index (lines start from 1)
-      qf_index, _ = table.unpack(vim.api.nvim_win_get_cursor(0))
+   if #quickfix_list > 0 then
+      -- get current cursor line position as quickfix_index (lines start from 1)
+      quickfix_index, _ = table.unpack(vim.api.nvim_win_get_cursor(0))
 
       -- remove quickfix element from the array at the index position (Note: table.remove indexes table from 1)
-      table.remove(qf_list, qf_index)
+      table.remove(quickfix_list, quickfix_index)
 
       -- recreate quickfix list
-      vim.fn.setqflist(qf_list, 'r')
+      vim.fn.setqflist(quickfix_list, 'r')
    end
 
    -- set list position or close if last element was deleted
-   if #qf_list > 0 then
-      vim.cmd.crewind({ count = qf_index })
+   if #quickfix_list > 0 then
+      vim.cmd.crewind({ count = quickfix_index })
       vim.cmd.copen()
    else
       vim.cmd.cclose()
    end
+end
+
+function QuickfixDel:new()
+   -- polyfill of table.unpack for older Lua
+   table.unpack = table.unpack or unpack
+   apply_config(self, delete_quickfix_entry)
+   return self
 end
 
 local function process_config_string(self, config, entry)
@@ -52,8 +77,8 @@ local function process_config_string(self, config, entry)
    self.config[entry] = config[entry]
 end
 
--- Assumes a static setting, not something you dynamically change multiple times.
--- Intended to be called only once (optionally), early during plugin loading.
+-- Performs a one time setup, not something you dynamically change multiple times.
+-- Intended to be called early, during plugin loading.
 -- Calling it later, like when quickfix window is already opened for example, will be glitchy.
 function QuickfixDel:setup(config)
    if self.setup_calls > 0 then
@@ -62,39 +87,7 @@ function QuickfixDel:setup(config)
 
    process_config_string(self, config, "key")
    self.setup_calls = self.setup_calls + 1
-   self:load()
-end
-
-function QuickfixDel:load()
-   -- new() on plugin loading will call legit load() once
-   -- legit setup() would call legit load() the second time
-   -- below conditions indicate invalid usage
-   local manual_load_no_setup = (self.setup_calls == 0) and (self.load_calls > 0)
-   local manual_load_after_setup = (self.load_calls >= 2)
-
-   if manual_load_no_setup or manual_load_after_setup then
-      error("Manual usage of load() is not supported!")
-   end
-
-   if self.autocmd_id ~= nil then
-      -- subsequent load call, delete existing autocmd first to recreate it
-      vim.api.nvim_del_autocmd(self.autocmd_id)
-   end
-
-   self.autocmd_id = vim.api.nvim_create_autocmd("FileType", {
-      pattern = "qf",
-      callback = function(event)
-         if self.mapped_key ~= nil then
-            -- clear existing mapping
-            vim.keymap.del("n", self.mapped_key, { buffer = event.buf })
-         end
-
-         vim.keymap.set("n", self.config.key, delete_current_quickfix_entry, { buffer = event.buf })
-         self.mapped_key = self.config.key
-     end
-   })
-
-   self.load_calls = self.load_calls + 1
+   apply_config(self, delete_quickfix_entry)
 end
 
 return QuickfixDel:new()
