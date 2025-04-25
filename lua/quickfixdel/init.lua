@@ -8,7 +8,7 @@ local QuickfixDel = {
 }
 
 function QuickfixDel:new()
-   -- polyfill table.unpack in older Lua
+   -- polyfill table.unpack for older Lua
    table.unpack = table.unpack or unpack
    self:load()
    return self
@@ -25,9 +25,12 @@ local function delete_current_quickfix_entry()
 
       -- remove quickfix element from the array at the index position (Note: table.remove indexes table from 1)
       table.remove(qf_list, qf_index)
+
+      -- recreate quickfix list
       vim.fn.setqflist(qf_list, 'r')
    end
 
+   -- set list position or close if last element was deleted
    if #qf_list > 0 then
       vim.cmd.crewind({ count = qf_index })
       vim.cmd.copen()
