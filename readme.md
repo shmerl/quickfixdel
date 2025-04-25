@@ -2,7 +2,7 @@
 
 Neovim Lua plugin which provides a keymapping (`dd` by default) for deleting entries in the quickfix list window.
 
-Deletes the current entry in the quicfkix list in the line under the cursor, not the currently selected quickfix entry.
+Deletes the current entry in the quickfix list in the line under the cursor, not the currently selected quickfix entry.
 
 Inspired by [quickfixdd](https://github.com/TamaMcGlinn/quickfixdd) by [@TamaMcGlinn](https://github.com/TamaMcGlinn), but written in Lua adding optional key customization.
 
