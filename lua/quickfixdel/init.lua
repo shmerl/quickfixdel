@@ -57,13 +57,6 @@ local function delete_quickfix_entry()
    end
 end
 
-function QuickfixDel:new()
-   -- polyfill of table.unpack for older Lua
-   table.unpack = table.unpack or unpack
-   apply_config(self, delete_quickfix_entry)
-   return self
-end
-
 local function process_config_string(self, config, entry)
    -- not setting if config entry name is not provided
    if config[entry] == nil then
@@ -90,4 +83,11 @@ function QuickfixDel:setup(config)
    apply_config(self, delete_quickfix_entry)
 end
 
-return QuickfixDel:new()
+local function init(self)
+   -- polyfill of table.unpack for older Lua
+   table.unpack = table.unpack or unpack
+   apply_config(self, delete_quickfix_entry)
+   return self
+end
+
+return init(QuickfixDel)
