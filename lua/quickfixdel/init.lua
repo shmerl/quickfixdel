@@ -7,30 +7,6 @@ local QuickfixDel = {
    setup_calls = 0
 }
 
--- should not be called more than twice
--- gets delete_fn to be able to call private delete_quickfix_entry from the autocmd event callback,
--- which doesn't have access to module scope
-local function apply_config(self, delete_fn)
-   if self.autocmd_id ~= nil then
-      -- subsequent call from setup(), delete existing autocmd first to recreate it below
-      vim.api.nvim_del_autocmd(self.autocmd_id)
-   end
-
-   self.autocmd_id = vim.api.nvim_create_autocmd("FileType", {
-      pattern = "qf",
-      desc = "Set up quickfixdel keymap",
-      callback = function(event)
-         if self.mapped_key ~= nil then
-            -- clear existing mapping
-            vim.keymap.del("n", self.mapped_key, { buffer = event.buf })
-         end
-
-         vim.keymap.set("n", self.config.key, delete_fn, { buffer = event.buf, desc = "Delete quickfix entry" })
-         self.mapped_key = self.config.key
-      end
-   })
-end
-
 -- intended to be called for the window that shows quickfix list
 -- deletes entry in the line under the cursor
 local function delete_quickfix_entry()
@@ -57,6 +33,29 @@ local function delete_quickfix_entry()
    end
 end
 
+-- should not be called more than twice
+-- which doesn't have access to module scope
+local function apply_config(self)
+   if self.autocmd_id ~= nil then
+      -- subsequent call from setup(), delete existing autocmd first to recreate it below
+      vim.api.nvim_del_autocmd(self.autocmd_id)
+   end
+
+   self.autocmd_id = vim.api.nvim_create_autocmd("FileType", {
+      pattern = "qf",
+      desc = "Set up quickfixdel keymap",
+      callback = function(event)
+         if self.mapped_key ~= nil then
+            -- clear existing mapping
+            vim.keymap.del("n", self.mapped_key, { buffer = event.buf })
+         end
+
+         vim.keymap.set("n", self.config.key, delete_quickfix_entry, { buffer = event.buf, desc = "Delete quickfix entry" })
+         self.mapped_key = self.config.key
+      end
+   })
+end
+
 local function process_config_string(self, config, entry)
    -- not setting if config entry name is not provided
    if config[entry] == nil then
@@ -80,13 +79,13 @@ function QuickfixDel:setup(config)
 
    process_config_string(self, config, "key")
    self.setup_calls = self.setup_calls + 1
-   apply_config(self, delete_quickfix_entry)
+   apply_config(self)
 end
 
 local function init(self)
    -- polyfill of table.unpack for older Lua
    table.unpack = table.unpack or unpack
-   apply_config(self, delete_quickfix_entry)
+   apply_config(self)
    return self
 end
 
