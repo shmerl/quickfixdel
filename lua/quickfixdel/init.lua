@@ -34,7 +34,6 @@ local function delete_quickfix_entry()
 end
 
 -- should not be called more than twice
--- which doesn't have access to module scope
 local function apply_config(self)
    if self.autocmd_id ~= nil then
       -- subsequent call from setup(), delete existing autocmd first to recreate it below
